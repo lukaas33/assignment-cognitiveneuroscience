@@ -28,7 +28,7 @@ def get_data():
 def preprocess(dataset, batchsize, shuffle=False):
     dataset = dataset.map(lambda image, label: (cast(image, float32) / 255.0, label)) # Normalise pixel values
     if shuffle:
-        dataset = dataset.shuffle(len(x_train)) # Shuffle to create random batches (instead of examples with the same label)
+        dataset = dataset.shuffle(len(dataset)) # Shuffle to create random batches (instead of examples with the same label)
     dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
     dataset = dataset.cache() # Cache (keep in memory) for improved runtime
     return dataset
@@ -39,7 +39,7 @@ def def_models():
         Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
         Dense( # Hidden layer, densely connected with previous layer
             28*28, # same size as input layer; TODO try different sizes
-            activation='relu' # relu popular, avoid vanishing gradient problem; TODO choose another to fix deactivation of neurons
+            activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
         ),
         Dense(10) # Output layer with a node for each number, densely connected with previous
     ])
@@ -64,7 +64,7 @@ def main(batchsize=128, epochs=2):
     ds_train, ds_test = get_data()
 
     # Preprocessing
-    ds_train = preprocess(ds_train, batchsize)
+    ds_train = preprocess(ds_train, batchsize, shuffle=True)
     ds_test = preprocess(ds_test, batchsize)
 
     # Define models
@@ -74,7 +74,7 @@ def main(batchsize=128, epochs=2):
     for model in models:
         # Set parameters
         model.compile( # TODO change and comment on parameters
-            optimizer=Adam(0.001),
+            optimizer=Adam(0.001), # TODO lookup, learning speed?
             loss=SparseCategoricalCrossentropy(from_logits=True),
             metrics=[SparseCategoricalAccuracy()]
         )
