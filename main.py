@@ -12,42 +12,38 @@ from tensorflow import cast, float32
 # QUESTION does a bigger batch size decrease performance?
 # QUESTION what does prefetch do exactly
 
-# Preprocessing functions
-normalize_example = lambda image, label: (cast(image, float32) / 255.0, label)
-
-# Main control flow
-def main(batchsize = 128, epochs = 2):
-    # Get data
+# Get dataset
+def get_data():
     # MNIST Handwritten character image dataset with 60k training examples and 10k testing examples
     # Each example x contains 28x28 'pixels' expressed as integers with range 0-255
     # Each example label y contains a number that the image represents
-    (x_train, y_train), (x_test, y_test) = mnist.load_data(
+    (x_train, y_train), (x_test, y_test) = mnist.load_data( # Load dataset
         path='mnist.npz' # Store on disk for improved runtime
     )
-    ds_train = Dataset.from_tensor_slices((x_train, y_train))
+    ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows some useful methods
     ds_test = Dataset.from_tensor_slices((x_test, y_test))
+    return ds_train, ds_test
 
-    # Preprocessing
-    # Training set
-    ds_train = ds_train.map(normalize_example) # Normalise pixel values
-    ds_train = ds_train.cache() # Cache (keep in memory) for improved runtime
-    ds_train = ds_train.shuffle(len(x_train)) # Shuffle to create random batches (instead of examples with the same label)
-    ds_train = ds_train.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
-    # Testing set
-    ds_test = ds_test.map(normalize_example)
-    ds_test = ds_test.batch(batchsize)
-    ds_test = ds_test.cache() # Can cache later as the testing set isn't shuffled
+# Preprocess data
+def preprocess(dataset, batchsize, shuffle=False):
+    dataset = dataset.map(lambda image, label: (cast(image, float32) / 255.0, label)) # Normalise pixel values
+    if shuffle:
+        dataset = dataset.shuffle(len(x_train)) # Shuffle to create random batches (instead of examples with the same label)
+    dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
+    dataset = dataset.cache() # Cache (keep in memory) for improved runtime
+    return dataset
 
-    # Define models
-    modelOneLayer = Sequential([ # Simple one layered model
+# Define models
+def def_models():
+    yield Sequential([ # Simple one layered model
         Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
         Dense( # Hidden layer, densely connected with previous layer
             28*28, # same size as input layer; TODO try different sizes
-            activation='relu' # TODO change and comment on parameters
+            activation='relu' # relu popular, avoid vanishing gradient problem; TODO choose another to fix deactivation of neurons
         ),
         Dense(10) # Output layer with a node for each number, densely connected with previous
     ])
-    modelConv = Sequential([ # Convolutional model
+    yield Sequential([ # Convolutional model
         Conv2D( # convolutional layer TODO change and comment on parameters
             28,
             kernel_size=3,
@@ -55,13 +51,27 @@ def main(batchsize = 128, epochs = 2):
             activation="relu",
             padding="same" # padding to ensure that the shape of the data stays the same
         ),
+        # TODO poolen? Reduceert onbelangrijke features
         Flatten(input_shape=(28, 28)),
         Dense(10)
     ])
-    # TODO model three layers
+    # TODO model three layers (depth costs more time and may require more examples)
+
+
+# Main control flow
+def main(batchsize=128, epochs=2):
+    # Get data
+    ds_train, ds_test = get_data()
+
+    # Preprocessing
+    ds_train = preprocess(ds_train, batchsize)
+    ds_test = preprocess(ds_test, batchsize)
+
+    # Define models
+    models = def_models()
 
     # Train and evaluate models
-    for model in (modelOneLayer, modelConv):
+    for model in models:
         # Set parameters
         model.compile( # TODO change and comment on parameters
             optimizer=Adam(0.001),
@@ -80,6 +90,8 @@ def main(batchsize = 128, epochs = 2):
             ds_test, # Run the testing examples through the model to find the accuracy
             verbose=2 # Print the maximum amount of detail
         )
+
+        # TODO log score over time
 
 if __name__ == '__main__':
     main()
