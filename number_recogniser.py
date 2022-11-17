@@ -7,7 +7,7 @@ from tensorflow.keras.metrics import SparseCategoricalAccuracy
 from tensorflow.data import Dataset, AUTOTUNE
 from tensorflow import cast, float32
 
-# TODO fix CPU
+# TODO fix GPU
 # TODO hyperparameter optimisation of main arguments
 # QUESTION does a bigger batch size decrease performance?
 # QUESTION what does prefetch do exactly
@@ -25,12 +25,13 @@ def get_data():
     return ds_train, ds_test
 
 # Preprocess data
-def preprocess(dataset, batchsize, shuffle=False):
+def preprocess(dataset, batchsize, shuffle=False, cache=True):
     dataset = dataset.map(lambda image, label: (cast(image, float32) / 255.0, label)) # Normalise pixel values
     if shuffle:
         dataset = dataset.shuffle(len(dataset)) # Shuffle to create random batches (instead of examples with the same label)
     dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
-    dataset = dataset.cache() # Cache (keep in memory) for improved runtime
+    if cache: # Don't want this when storing the model
+        dataset = dataset.cache() # Cache (keep in memory) for improved runtime
     return dataset
 
 # Define models
@@ -58,40 +59,56 @@ def def_models():
     # TODO model three layers (depth costs more time and may require more examples)
 
 
+# Train and evaluate model
+def train(ds_train, model, epochs, ds_test=None):
+    # Set parameters
+    model.compile( # TODO change and comment on parameters
+        optimizer=Adam(0.001), # TODO lookup, learning speed?
+        loss=SparseCategoricalCrossentropy(from_logits=True),
+        metrics=[SparseCategoricalAccuracy()]
+    )
+    # Train the model
+    model.fit(
+        ds_train, # Run the examples through the model and update the weights
+        epochs=epochs, # Go over dataset 5 times
+        use_multiprocessing=True, # Improve runtime by multithreading
+        verbose=0 # don't print progress of training
+    )
+    # Evaluate the model
+    if ds_test is not None:
+        score = model.evaluate(
+            ds_test, # Run the testing examples through the model to find the accuracy
+            verbose=0 # don't print anything
+        )
+        return model, score
+    else:
+        return model
+
+
 # Main control flow
-def main(batchsize=128, epochs=2):
+def main(batchsize=128, epochs=2, save=False):
     # Get data
     ds_train, ds_test = get_data()
 
     # Preprocessing
-    ds_train = preprocess(ds_train, batchsize, shuffle=True)
-    ds_test = preprocess(ds_test, batchsize)
+    ds_train = preprocess(ds_train, batchsize, shuffle=True, cache=(not save))
+    ds_test = preprocess(ds_test, batchsize, cache=(not save))
 
     # Define models
     models = def_models()
 
     # Train and evaluate models
+    best_model = None
+    highest_acc = 0
     for model in models:
-        # Set parameters
-        model.compile( # TODO change and comment on parameters
-            optimizer=Adam(0.001), # TODO lookup, learning speed?
-            loss=SparseCategoricalCrossentropy(from_logits=True),
-            metrics=[SparseCategoricalAccuracy()]
-        )
-        # Train the model
-        model.fit(
-            ds_train, # Run the examples through the model and update the weights
-            epochs=epochs, # Go over dataset 5 times
-            use_multiprocessing=True, # Improve runtime by multithreading
-            verbose=0 # don't print progress of training
-        )
-        # Evaluate the model
-        model.evaluate(
-            ds_test, # Run the testing examples through the model to find the accuracy
-            verbose=2 # Print the maximum amount of detail
-        )
-
+        model, score = train(ds_train, model, epochs, ds_test=ds_test) # Train and evaluate
+        accuracy = score[1]
+        if accuracy > highest_acc: # Save best
+            best_model = model
+            highest_acc = accuracy
         # TODO log score over time
+    if save:
+        return best_model # Return best trained model
 
 if __name__ == '__main__':
     main()

@@ -1,9 +1,9 @@
-from main import main
+import number_recogniser
 import unittest
 
 class Main(unittest.TestCase):
     def test_main(self):
-        main()
+        number_recogniser.main()
 
 if __name__ == '__main__':
     unittest.main()
