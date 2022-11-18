@@ -21,14 +21,15 @@ white = (255, 255, 255) # canvas back
 def paint(event):
     x1, y1 = (event.x - 1), (event.y - 1)
     x2, y2 = (event.x + 1), (event.y + 1)
-    canvas.create_oval(x1, y1, x2, y2, fill="black", width=3)
-    # drawframe.line([x1, y1, x2, y2], fill="black", width=5)
+    canvas.create_rectangle(x1, y1, x2, y2, fill="black", width=9)
+    drawframe.rectangle([x1, y1, x2, y2], fill="black", width=9)
 
 def recognise():
     smallimage = image.resize((28, 28)) # Compress to size of NN
     smallimage = smallimage.convert('L') # Grayscale
     matrix = numpy.array(smallimage) # Convert drawn layer to matrix
     matrix = 255 - matrix # Express black pixels as higher
+    print(matrix)
     matrix = matrix.astype(numpy.float64) / 255 # Normalise
     pred = model.predict(numpy.reshape(matrix, (1, 28, 28, 1))) # Predict
     print(pred)
@@ -37,7 +38,7 @@ def recognise():
 
 def clear():
     canvas.delete('all')
-    # drawframe.rectangle((0, 0, width, height), fill=(0, 0, 0, 0))
+    drawframe.rectangle((0, 0, width, height), fill=(255, 255, 255, 255))
 
 def main():
     # TODO remove global variables and * imports
