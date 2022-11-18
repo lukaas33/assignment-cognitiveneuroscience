@@ -6,6 +6,7 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
 from tensorflow.data import Dataset, AUTOTUNE
 from tensorflow import cast, float32
+from time import time
 
 # TODO fix GPU
 # TODO hyperparameter optimisation of main arguments
@@ -25,38 +26,43 @@ def get_data():
     return ds_train, ds_test
 
 # Preprocess data
-def preprocess(dataset, batchsize, shuffle=False, cache=True):
+def preprocess(dataset, batchsize, shuffle=False):
     dataset = dataset.map(lambda image, label: (cast(image, float32) / 255.0, label)) # Normalise pixel values
     if shuffle:
         dataset = dataset.shuffle(len(dataset)) # Shuffle to create random batches (instead of examples with the same label)
     dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
-    if cache: # Don't want this when storing the model
-        dataset = dataset.cache() # Cache (keep in memory) for improved runtime
+    dataset = dataset.cache() # Cache (keep in memory) for improved runtime
     return dataset
 
-# Define models
+# Define models and return them one by one
 def def_models():
     # TODO add dropout?
-    yield Sequential([ # Simple one layered model
-        Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
-        Dense( # Hidden layer, densely connected with previous layer
-            28*28, # same size as input layer; TODO try different sizes
-            activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
-        ),
-        Dense(10) # Output layer with a node for each number, densely connected with previous
-    ])
-    yield Sequential([ # Convolutional model
-        Conv2D( # convolutional layer TODO change and comment on parameters
-            28,
-            kernel_size=3,
-            input_shape=(28, 28, 1), # Grayscale
-            activation="relu",
-            padding="same" # padding to ensure that the shape of the data stays the same
-        ),
-        # TODO poolen? Reduceert onbelangrijke features
-        Flatten(input_shape=(28, 28)),
-        Dense(10)
-    ])
+    yield (
+        "OneLayerNN", # Simple one layered model
+        Sequential([ # Feed forward NN
+            Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
+            Dense( # Hidden layer, densely connected with previous layer
+                28*28, # same size as input layer; TODO try different sizes
+                activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
+            ),
+            Dense(10) # Output layer with a node for each number, densely connected with previous
+        ])
+    )
+    yield (
+        "ConvOneLayerNN", # Convolutional model
+        Sequential([
+            Conv2D( # convolutional layer TODO change and comment on parameters
+                28,
+                kernel_size=3,
+                input_shape=(28, 28, 1), # Grayscale
+                activation="relu",
+                padding="same" # padding to ensure that the shape of the data stays the same
+            ),
+            # TODO poolen? Reduceert onbelangrijke features
+            Flatten(input_shape=(28, 28)),
+            Dense(10)
+        ])
+    )
     # TODO model three layers (depth costs more time and may require more examples)
 
 
@@ -101,14 +107,17 @@ def main(batchsize=128, epochs=2):
     # Train and evaluate models
     best_model = None
     highest_acc = 0
-    for model in models:
+    time_prev = time()
+    for name, model in models:
         model, score = train(ds_train, model, epochs, ds_test=ds_test) # Train and evaluate
         accuracy = score[1]
         loss = score[0]
+        runtime = time() - time_prev
+        time_prev = time()
         if accuracy > highest_acc: # Save best
             best_model = model
             highest_acc = accuracy
-        # TODO log score over time
+        print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)} and a loss of {round(loss, 3)}. Runtime was {runtime}")
     return best_model # Return best trained model
 
 if __name__ == '__main__':
