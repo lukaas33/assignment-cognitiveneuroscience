@@ -1,4 +1,5 @@
 # TODO let user input drawing of symbol and pass it to trained NN to recognise
+import tensorflow
 from tensorflow import keras
 import numpy
 import number_recogniser
@@ -21,19 +22,20 @@ white = (255, 255, 255) # canvas back
 def paint(event):
     x1, y1 = (event.x - 1), (event.y - 1)
     x2, y2 = (event.x + 1), (event.y + 1)
-    canvas.create_rectangle(x1, y1, x2, y2, fill="black", width=9)
-    drawframe.rectangle([x1, y1, x2, y2], fill="black", width=9)
+    canvas.create_rectangle(x1, y1, x2, y2, fill="black", width=15)
+    drawframe.rectangle([x1, y1, x2, y2], fill="black", width=15)
 
 def recognise():
     smallimage = image.resize((28, 28)) # Compress to size of NN
     smallimage = smallimage.convert('L') # Grayscale
     matrix = numpy.array(smallimage) # Convert drawn layer to matrix
     matrix = 255 - matrix # Express black pixels as higher
-    matrix = matrix.astype(numpy.float64) / 255 # Normalise
+    matrix = matrix.astype(numpy.float32) / 255 # Normalise
     pred = model.predict(numpy.reshape(matrix, (1, 28, 28, 1)), verbose=0) # Predict
+    prob = tensorflow.nn.softmax(pred).numpy()
+    print(prob)
     predclass = numpy.argmax(pred, axis=-1)
-    print(pred)
-    outputlabel["text"] = f"{predclass} ({max(pred[0])})"
+    outputlabel["text"] = f"{predclass} (p = {max(prob[0])})"
 
 def clear():
     canvas.delete('all')

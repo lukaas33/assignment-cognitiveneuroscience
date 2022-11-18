@@ -49,7 +49,7 @@ def def_models():
         Conv2D( # convolutional layer TODO change and comment on parameters
             28,
             kernel_size=3,
-            input_shape=(28, 28, 1), # QUESTION why the 1?
+            input_shape=(28, 28, 1), # Grayscale
             activation="relu",
             padding="same" # padding to ensure that the shape of the data stays the same
         ),
@@ -104,6 +104,7 @@ def main(batchsize=128, epochs=2):
     for model in models:
         model, score = train(ds_train, model, epochs, ds_test=ds_test) # Train and evaluate
         accuracy = score[1]
+        loss = score[0]
         if accuracy > highest_acc: # Save best
             best_model = model
             highest_acc = accuracy
