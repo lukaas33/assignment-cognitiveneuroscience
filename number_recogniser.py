@@ -36,6 +36,7 @@ def preprocess(dataset, batchsize, shuffle=False, cache=True):
 
 # Define models
 def def_models():
+    # TODO add dropout?
     yield Sequential([ # Simple one layered model
         Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
         Dense( # Hidden layer, densely connected with previous layer
@@ -86,13 +87,13 @@ def train(ds_train, model, epochs, ds_test=None):
 
 
 # Main control flow
-def main(batchsize=128, epochs=2, save=False):
+def main(batchsize=128, epochs=2):
     # Get data
     ds_train, ds_test = get_data()
 
     # Preprocessing
-    ds_train = preprocess(ds_train, batchsize, shuffle=True, cache=(not save))
-    ds_test = preprocess(ds_test, batchsize, cache=(not save))
+    ds_train = preprocess(ds_train, batchsize, shuffle=True)
+    ds_test = preprocess(ds_test, batchsize)
 
     # Define models
     models = def_models()
@@ -107,8 +108,7 @@ def main(batchsize=128, epochs=2, save=False):
             best_model = model
             highest_acc = accuracy
         # TODO log score over time
-    if save:
-        return best_model # Return best trained model
+    return best_model # Return best trained model
 
 if __name__ == '__main__':
     main()

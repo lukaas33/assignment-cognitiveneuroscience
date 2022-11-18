@@ -1,8 +1,7 @@
 # TODO let user input drawing of symbol and pass it to trained NN to recognise
-
+from tensorflow import keras
 import numpy
 import number_recogniser
-import pickle
 import os.path
 from PIL import ImageTk, Image, ImageDraw
 import PIL
@@ -13,6 +12,7 @@ canvas = None
 drawframe = None
 image = None
 model = None
+outputlabel = None
 width = 280  # canvas width
 height = 280 # canvas height
 center = height // 2
@@ -21,29 +21,35 @@ white = (255, 255, 255) # canvas back
 def paint(event):
     x1, y1 = (event.x - 1), (event.y - 1)
     x2, y2 = (event.x + 1), (event.y + 1)
-    canvas.create_oval(x1, y1, x2, y2, fill="black", width=5)
-    drawframe.line([x1, y1, x2, y2], fill="black", width=5)
+    canvas.create_oval(x1, y1, x2, y2, fill="black", width=3)
+    # drawframe.line([x1, y1, x2, y2], fill="black", width=5)
 
 def recognise():
-    matrix = numpy.array(image)[1] # Convert drawn layer to matrix
+    smallimage = image.resize((28, 28)) # Compress to size of NN
+    smallimage = smallimage.convert('L') # Grayscale
+    matrix = numpy.array(smallimage) # Convert drawn layer to matrix
     matrix = 255 - matrix # Express black pixels as higher
-    # TODO compress matrix 10 times
-    # TODO recognise
-    # TODO output prediction
+    matrix = matrix.astype(numpy.float64) / 255 # Normalise
+    pred = model.predict(numpy.reshape(matrix, (1, 28, 28, 1))) # Predict
+    print(pred)
+    predclass = numpy.argmax(pred)
+    outputlabel["text"] = str(predclass)
+
+def clear():
+    canvas.delete('all')
+    # drawframe.rectangle((0, 0, width, height), fill=(0, 0, 0, 0))
 
 def main():
-    global canvas, drawframe, image, model
+    # TODO remove global variables and * imports
+    global canvas, drawframe, image, model, outputlabel
 
     # Cache trained model
-    filename = "__pycache__/model-v1.cache"
-    if os.path.isfile(filename):
-        with open(filename, 'rb') as file:
-            model = pickle.load(file)
+    pathname = "__pycache__/model"
+    if os.path.isdir(pathname):
+        model = keras.models.load_model(pathname, compile=True)
     else:
         model = number_recogniser.main() # Train model on training data
-        with open(filename, 'wb') as file:
-            pickle.dump(model, file)
-
+        model.save(pathname)
 
     # This code from https://www.folkstalk.com/2022/10/jupyter-notebook-let-a-user-inputs-a-drawing-with-code-examples.html
     # create a tkinter canvas to draw on
@@ -55,12 +61,15 @@ def main():
     drawframe = ImageDraw.Draw(image)
     canvas.pack(expand=YES, fill=BOTH)
     canvas.bind("<B1-Motion>", paint)
-
+    # Create a label to output the prediction
+    outputlabel = Label(master, text='')
+    outputlabel.pack()
     # add a button to recognise the image
-    button = Button(text="Recognise", command=recognise)
-    button.pack()
-
-    # TODO add clear button
+    recogbutton = Button(text="Recognise", command=recognise)
+    recogbutton.pack()
+    # add a button to clear the image
+    clearbutton = Button(text="Clear", command=clear)
+    clearbutton.pack()
 
     master.mainloop()
 
