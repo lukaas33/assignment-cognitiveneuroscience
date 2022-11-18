@@ -29,12 +29,11 @@ def recognise():
     smallimage = smallimage.convert('L') # Grayscale
     matrix = numpy.array(smallimage) # Convert drawn layer to matrix
     matrix = 255 - matrix # Express black pixels as higher
-    print(matrix)
     matrix = matrix.astype(numpy.float64) / 255 # Normalise
-    pred = model.predict(numpy.reshape(matrix, (1, 28, 28, 1))) # Predict
+    pred = model.predict(numpy.reshape(matrix, (1, 28, 28, 1)), verbose=0) # Predict
+    predclass = numpy.argmax(pred, axis=-1)
     print(pred)
-    predclass = numpy.argmax(pred)
-    outputlabel["text"] = str(predclass)
+    outputlabel["text"] = f"{predclass} ({max(pred[0])})"
 
 def clear():
     canvas.delete('all')
