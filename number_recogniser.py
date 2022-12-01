@@ -8,7 +8,6 @@ from tensorflow.data import Dataset, AUTOTUNE
 from tensorflow import cast, float32
 from time import time
 
-# TODO fix GPU
 # TODO hyperparameter optimisation of main arguments
 # QUESTION does a bigger batch size decrease performance?
 # QUESTION what does prefetch do exactly
@@ -117,7 +116,7 @@ def main(batchsize=128, epochs=2):
         if accuracy > highest_acc: # Save best
             best_model = model
             highest_acc = accuracy
-        print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)} and a loss of {round(loss, 3)}. Runtime was {runtime}")
+        print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)} and a loss of {round(loss, 3)}. Runtime was {runtime}s")
     return best_model # Return best trained model
 
 if __name__ == '__main__':
