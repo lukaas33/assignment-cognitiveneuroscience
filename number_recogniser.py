@@ -1,6 +1,6 @@
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, Dropout
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, Dropout, AveragePooling2D, MaxPooling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
@@ -22,6 +22,7 @@ def get_data():
     )
     ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows some useful methods
     ds_test = Dataset.from_tensor_slices((x_test, y_test))
+    # TODO use subset for testing or cross validation
     return ds_train, ds_test
 
 # Preprocess data
@@ -46,9 +47,9 @@ def def_models(layersize, convsize):
                 layersize, # same size as input layer
                 activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
             ),
-            Dropout(
-                0.01 # Drop 1% of nodes, reduces overfitting
-            ),
+            # Dropout(
+            #     0.01 # Drop 1% of nodes, reduces overfitting
+            # ),
             Dense(10) # Output layer with a node for each number, densely connected with previous
         ])
     )
@@ -62,8 +63,13 @@ def def_models(layersize, convsize):
                 activation="relu",
                 padding="same" # padding to ensure that the shape of the data stays the same
             ),
-            # TODO poolen? Reduceert onbelangrijke features
-            Flatten(input_shape=(28, 28)),
+            # AveragePooling2D(
+            #   pool_size=(2, 2)
+            # ),
+            MaxPooling2D(
+                pool_size=(2, 2)
+            ),
+            Flatten(input_shape=(14, 14)),
             Dense(10)
         ])
     )
