@@ -63,7 +63,28 @@ def def_models(layersize, filters):
             Dense(10)
         ])
     )
-    # TODO model three layers (depth costs more time and may require more examples)
+    yield (
+        "ThreeLayerNN", # Three layered model
+        Sequential([ 
+            Flatten(input_shape=(28, 28)), 
+            Dense( 
+                units=layersize, 
+                activation='relu',
+                use_bias=True 
+            ),
+            Dense( 
+                units=layersize, 
+                activation='relu',
+                use_bias=True 
+            ),
+            Dense( 
+                units=layersize, 
+                activation='relu',
+                use_bias=True 
+            ),
+            Dense(10) 
+        ])
+    )
 
 
 # Train and evaluate model
