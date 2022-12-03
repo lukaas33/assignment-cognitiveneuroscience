@@ -1,10 +1,10 @@
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, Dropout, AveragePooling2D, MaxPooling2D
+from tensorflow.keras.layers import Dense, Flatten, Conv2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
-from tensorflow.data import Dataset, AUTOTUNE
+from tensorflow.data import Dataset
 from tensorflow import cast, float32
 from time import time
 
@@ -33,29 +33,33 @@ def preprocess(dataset, batchsize, shuffle=False):
     return dataset
 
 # Define models and return them one by one
-def def_models(layersize, convsize):
+def def_models(layersize, filters):
     yield (
         "OneLayerNN", # Simple one layered model
         Sequential([ # Feed forward NN
             Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
             Dense( # Hidden layer, densely connected with previous layer
-                layersize, # same size as input layer
-                activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
+                units=layersize, # Number of nodes in this layer
+                activation='relu', # relu popular, avoid vanishing gradient problem; deactivates some neurons
+                use_bias=True # Can shift activation function, making the network more flexible
             ),
+            # Dropout can be used to reduce overfitting, however it was disadvantageous in this task
             Dense(10) # Output layer with a node for each number, densely connected with previous
         ])
     )
     yield (
-        "ConvOneLayerNN", # Convolutional model
+        "OneConvLayerNN", # Convolutional model
         Sequential([
-            Conv2D( # convolutional layer TODO change and comment on parameters
-                convsize,
-                kernel_size=3,
-                input_shape=(28, 28, 1), # Grayscale, one channel instead of 3
+            Conv2D( # convolutional layer 
+                filters=filters, # How many convolutional filters to apply
+                kernel_size=3, # Size of convolution window
+                use_bias=True,
+                input_shape=(28, 28, 1), # Grayscale, 3rd dimension has one channel instead of 3
                 activation="relu",
                 padding="same" # padding to ensure that the shape of the data stays the same
             ),
-            Flatten(input_shape=(14, 14)),
+            # Pooling can be used to reduce features and thus prevent overfitting, but this was not advantageous for this task
+            Flatten(input_shape=(28, 28)),
             Dense(10)
         ])
     )
@@ -65,10 +69,12 @@ def def_models(layersize, convsize):
 # Train and evaluate model
 def train(ds_train, model, epochs, ds_test=None):
     # Set parameters
-    model.compile( # TODO change and comment on parameters
-        optimizer=Adam(0.001), # TODO lookup, learning speed?
-        loss=SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[SparseCategoricalAccuracy()]
+    model.compile( 
+        optimizer=Adam( # Gradient descent optimisation algorithm
+            0.01 # Learning rate, higher will increase convergence speed but make it more susceptible to local optima
+        ), 
+        loss=SparseCategoricalCrossentropy(from_logits=True), # Loss definition
+        metrics=[SparseCategoricalAccuracy()] # Metric to optimise
     )
     # Train the model
     model.fit(
@@ -89,7 +95,7 @@ def train(ds_train, model, epochs, ds_test=None):
 
 
 # Main control flow
-def main(batchsize=128, epochs=2, layersize=250, convsize=10):
+def main(batchsize=128, epochs=2, layersize=250, filters=10):
     # Get data
     ds_train, ds_test = get_data()
 
@@ -98,7 +104,7 @@ def main(batchsize=128, epochs=2, layersize=250, convsize=10):
     ds_test = preprocess(ds_test, batchsize)
 
     # Define models
-    models = def_models(layersize, convsize)
+    models = def_models(layersize, filters)
 
     # Train and evaluate models
     best_model = None
