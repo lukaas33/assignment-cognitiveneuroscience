@@ -8,10 +8,6 @@ from tensorflow.data import Dataset, AUTOTUNE
 from tensorflow import cast, float32
 from time import time
 
-# TODO hyperparameter optimisation of main arguments
-# QUESTION does a bigger batch size decrease performance?
-# QUESTION what does prefetch do exactly
-
 # Get dataset
 def get_data():
     # MNIST Handwritten character image dataset with 60k training examples and 10k testing examples
@@ -22,7 +18,6 @@ def get_data():
     )
     ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows some useful methods
     ds_test = Dataset.from_tensor_slices((x_test, y_test))
-    # TODO use subset for testing or cross validation
     return ds_train, ds_test
 
 # Preprocess data
@@ -47,9 +42,6 @@ def def_models(layersize, convsize):
                 layersize, # same size as input layer
                 activation='relu' # relu popular, avoid vanishing gradient problem; deactivates some neurons
             ),
-            # Dropout(
-            #     0.01 # Drop 1% of nodes, reduces overfitting
-            # ),
             Dense(10) # Output layer with a node for each number, densely connected with previous
         ])
     )
@@ -62,12 +54,6 @@ def def_models(layersize, convsize):
                 input_shape=(28, 28, 1), # Grayscale, one channel instead of 3
                 activation="relu",
                 padding="same" # padding to ensure that the shape of the data stays the same
-            ),
-            # AveragePooling2D(
-            #   pool_size=(2, 2)
-            # ),
-            MaxPooling2D(
-                pool_size=(2, 2)
             ),
             Flatten(input_shape=(14, 14)),
             Dense(10)
