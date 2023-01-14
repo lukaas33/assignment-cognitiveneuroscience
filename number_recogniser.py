@@ -16,16 +16,16 @@ def get_data():
     (x_train, y_train), (x_test, y_test) = mnist.load_data( # Load dataset
         path='mnist.npz' # Store on disk for improved runtime
     )
-    ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows some useful methods
+    ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows for some useful methods
     ds_test = Dataset.from_tensor_slices((x_test, y_test))
     return ds_train, ds_test
 
 # Preprocess data
 def preprocess(dataset, batchsize, shuffle=False):
-    def normalise(image, label): 
-        return cast(image, float32) / 255.0, label
+    def normalise(image, label): # Normalise pixel values by dividing by the max value
+        return cast(image, float32) / 255.0, label 
 
-    dataset = dataset.map(normalise) # Normalise pixel values
+    dataset = dataset.map(normalise) 
     if shuffle:
         dataset = dataset.shuffle(len(dataset)) # Shuffle to create random batches (instead of examples with the same label)
     dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
@@ -52,14 +52,14 @@ def def_models(layersize, filters):
         Sequential([
             Conv2D( # convolutional layer 
                 filters=filters, # How many convolutional filters to apply
-                kernel_size=3, # Size of convolution window
-                use_bias=True,
+                kernel_size=3, # Size of convolution window to slide over image
+                use_bias=True, # Helps with empty frames
                 input_shape=(28, 28, 1), # Grayscale, 3rd dimension has one channel instead of 3
                 activation="relu",
                 padding="same" # padding to ensure that the shape of the data stays the same
             ),
             # Pooling can be used to reduce features and thus prevent overfitting, but this was not advantageous for this task
-            Flatten(input_shape=(28, 28)),
+            Flatten(input_shape=(28, 28)), # Needed to connect it to the output layer
             Dense(10)
         ])
     )
@@ -94,13 +94,13 @@ def train(ds_train, model, epochs, ds_test=None):
         optimizer=Adam( # Gradient descent optimisation algorithm
             0.01 # Learning rate, higher will increase convergence speed but make it more susceptible to local optima
         ), 
-        loss=SparseCategoricalCrossentropy(from_logits=True), # Loss definition
-        metrics=[SparseCategoricalAccuracy()] # Metric to optimise
+        loss=SparseCategoricalCrossentropy(from_logits=True), # Is a more compact measure of cat. cross entropy, which is a measure of similarity between two probability distributions
+        metrics=[SparseCategoricalAccuracy()] # Express as accuracy, useful for interpretation
     )
     # Train the model
     model.fit(
         ds_train, # Run the examples through the model and update the weights
-        epochs=epochs, # Go over dataset 5 times
+        epochs=epochs, # Go over dataset x times
         use_multiprocessing=True, # Improve runtime by multithreading
         verbose=0 # don't print progress of training
     )
@@ -108,7 +108,8 @@ def train(ds_train, model, epochs, ds_test=None):
     if ds_test is not None:
         score = model.evaluate(
             ds_test, # Run the testing examples through the model to find the accuracy
-            verbose=0 # don't print anything
+            verbose=0, # don't print anything,
+            return_dict = True
         )
         return model, score
     else:
@@ -133,13 +134,13 @@ def main(batchsize=128, epochs=2, layersize=250, filters=10):
     time_prev = time()
     for name, model in models:
         model, score = train(ds_train, model, epochs, ds_test=ds_test) # Train and evaluate
-        loss, accuracy = score
+        accuracy = score['sparse_categorical_accuracy']
         if accuracy > highest_acc: # Save best
             best_model = model
             highest_acc = accuracy
         runtime, time_prev = time() - time_prev, time()
         
-        print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)} and a loss of {round(loss, 3)}. Runtime was {runtime}s")
+        print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)}. Runtime was {runtime}s")
     return best_model # Return best trained model
 
 
