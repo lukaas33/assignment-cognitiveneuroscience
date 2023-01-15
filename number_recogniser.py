@@ -13,60 +13,97 @@ def get_data():
     # MNIST Handwritten character image dataset with 60k training examples and 10k testing examples
     # Each example x contains 28x28 'pixels' expressed as integers with range 0-255
     # Each example label y contains a number that the image represents
-    (x_train, y_train), (x_test, y_test) = mnist.load_data( # Load dataset
-        path='mnist.npz' # Store on disk for improved runtime
+    (x_train, y_train), (x_test, y_test) = mnist.load_data( 
+         # Load dataset and store on disk for improved runtime
+        path='mnist.npz'
     )
-    ds_train = Dataset.from_tensor_slices((x_train, y_train)) # Dataset object allows for some useful methods
+    # Dataset object allows for some useful methods
+    ds_train = Dataset.from_tensor_slices((x_train, y_train)) 
     ds_test = Dataset.from_tensor_slices((x_test, y_test))
     return ds_train, ds_test
 
 # Preprocess data
 def preprocess(dataset, batchsize, shuffle=False):
-    def normalise(image, label): # Normalise pixel values by dividing by the max value
+    # Normalise pixel values by dividing by the max value
+    # Required for the model
+    def normalise(image, label): 
         return cast(image, float32) / 255.0, label 
 
     dataset = dataset.map(normalise) 
     if shuffle:
-        dataset = dataset.shuffle(len(dataset)) # Shuffle to create random batches (instead of examples with the same label)
-    dataset = dataset.batch(batchsize) # After each batch of some examples the error is calculated and the model trained; this improves runtime
-    dataset = dataset.cache() # Cache (keep in memory) for improved runtime
+        # Shuffle to create random batches even if dataset is sorted
+        dataset = dataset.shuffle(len(dataset))
+    # After each 'batch' of x examples the error is calculated and the model trained; 
+    # this improves runtime by doing less backpropagation steps
+    dataset = dataset.batch(batchsize) 
+    # Cache (keep in memory) for improved runtime
+    dataset = dataset.cache() 
     return dataset
 
 # Define models and return them one by one
 def def_models(layersize, filters):
+    # Simple one layered model
     yield (
-        "OneLayerNN", # Simple one layered model
-        Sequential([ # Feed forward NN
-            Flatten(input_shape=(28, 28)), # Flatten 2D image matrix into 1D matrix; input layer with nodes for each pixel
-            Dense( # Hidden layer, densely connected with previous layer
-                units=layersize, # Number of nodes in this layer
-                activation='relu', # relu popular, avoid vanishing gradient problem; deactivates some neurons
-                use_bias=True # Can shift activation function, making the network more flexible
+        "OneLayerNN", 
+        # Feed forward NN
+        Sequential([ 
+            # Flatten 2D image matrix into 1D matrix; 
+            # Creates input layer with nodes for each pixel
+            Flatten(input_shape=(28, 28)), 
+            # Hidden layer, densely connected with previous layer
+            Dense(
+                # Number of nodes in this layer
+                # Larger number increased runtime without significant performance gain
+                # Lower number reduced performance
+                units=layersize, 
+                # relu popular and fast
+                # avoids vanishing gradient problem; 
+                # But deactivates some neurons
+                activation='relu',
+                # Can shift activation function, making the network more flexible
+                # Useful when many zeroes are present in the previous layer 
+                use_bias=True 
             ),
             # Dropout can be used to reduce overfitting, however it was disadvantageous in this task
-            Dense(10) # Output layer with a node for each number, densely connected with previous
+            # Output layer with a node for each number, densely connected with previous
+            Dense(10) 
         ])
     )
+    # Convolutional model
     yield (
-        "OneConvLayerNN", # Convolutional model
+        "OneConvLayerNN", 
         Sequential([
-            Conv2D( # convolutional layer 
-                filters=filters, # How many convolutional filters to apply
-                kernel_size=3, # Size of convolution window to slide over image
-                use_bias=True, # Helps with empty frames
-                input_shape=(28, 28, 1), # Grayscale, 3rd dimension has one channel instead of 3
+            # convolutional layer
+            # applies convolution to the 2D matrix
+            Conv2D( 
+                # How many kernels to apply
+                # Can detect different kinds of basic features
+                # Will significantly affect the performance
+                filters=filters,
+                # Size of kernel to slide over image 
+                # Smaller is often more accurate because it can detect more detail 
+                # Too small would be less useful in detecting small features
+                # Larger can be faster 
+                kernel_size=3, 
+                use_bias=True, 
+                # Grayscale, 3rd dimension has one channel instead of 3
+                input_shape=(28, 28, 1), 
                 activation="relu",
-                padding="same" # padding to ensure that the shape of the data stays the same
+                 # padding to ensure that the shape of the data stays the same
+                padding="same"
             ),
             # Pooling can be used to reduce features and thus prevent overfitting, but this was not advantageous for this task
-            Flatten(input_shape=(28, 28)), # Needed to connect it to the output layer
+            # Needed to connect it to the output layer
+            Flatten(input_shape=(28, 28)), 
             Dense(10)
         ])
     )
     yield (
-        "ThreeLayerNN", # Three layered model
+        # Three layered model
+        "ThreeLayerNN", 
         Sequential([ 
             Flatten(input_shape=(28, 28)), 
+            # Repeating the same hidden layer multiple times
             Dense( 
                 units=layersize, 
                 activation='relu',
@@ -86,30 +123,45 @@ def def_models(layersize, filters):
         ])
     )
 
-
 # Train and evaluate model
 def train(ds_train, model, epochs, ds_test=None):
     # Set parameters
     model.compile( 
-        optimizer=Adam( # Gradient descent optimisation algorithm
-            0.01 # Learning rate, higher will increase convergence speed but make it more susceptible to local optima
+        # Gradient descent optimisation algorithm
+        optimizer=Adam( 
+            # Learning rate, 
+            # higher will increase convergence speed 
+            # but make it more susceptible to local optima
+            0.01 
         ), 
-        loss=SparseCategoricalCrossentropy(from_logits=True), # Is a more compact measure of cat. cross entropy, which is a measure of similarity between two probability distributions
-        metrics=[SparseCategoricalAccuracy()] # Express as accuracy, useful for interpretation
+        # Is a more compact measure of cat. cross entropy, 
+        # which is a measure of similarity between two probability distributions:
+        # the prediction and the true output
+        loss=SparseCategoricalCrossentropy(from_logits=True), 
+        # Measure accuracy
+        # Useful for comparing and intepreting the evaluation
+        metrics=[SparseCategoricalAccuracy()] 
     )
     # Train the model
     model.fit(
-        ds_train, # Run the examples through the model and update the weights
-        epochs=epochs, # Go over dataset x times
-        use_multiprocessing=True, # Improve runtime by multithreading
-        verbose=0 # don't print progress of training
+        # Run the training examples through the model and update the weights
+        ds_train, 
+        # Go over dataset x times
+        # More repeats didn't significantly affect the results
+        epochs=epochs, 
+        # Improve runtime by multithreading
+        use_multiprocessing=True, 
+        # don't print progress of training
+        verbose=0 
     )
-    # Evaluate the model
+    # Evaluate the model if there is evaluation data
     if ds_test is not None:
         score = model.evaluate(
-            ds_test, # Run the testing examples through the model to find the accuracy
-            verbose=0, # don't print anything,
-            return_dict = True
+            # Run the testing examples through the model to find the accuracy
+            ds_test, 
+            # don't print anything,
+            verbose=0, 
+            return_dict=True
         )
         return model, score
     else:
@@ -133,15 +185,17 @@ def main(batchsize=128, epochs=2, layersize=250, filters=10):
     highest_acc = 0
     time_prev = time()
     for name, model in models:
-        model, score = train(ds_train, model, epochs, ds_test=ds_test) # Train and evaluate
+        model, score = train(ds_train, model, epochs, ds_test=ds_test) 
         accuracy = score['sparse_categorical_accuracy']
-        if accuracy > highest_acc: # Save best
+        # Save best model
+        if accuracy > highest_acc: 
             best_model = model
             highest_acc = accuracy
         runtime, time_prev = time() - time_prev, time()
-        
+        # Output for the user
         print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)}. Runtime was {runtime}s")
-    return best_model # Return best trained model
+    # Return best trained model
+    return best_model 
 
 
 if __name__ == '__main__':
