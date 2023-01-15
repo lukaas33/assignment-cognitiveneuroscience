@@ -130,6 +130,7 @@ def train(ds_train, model, epochs, ds_test=None):
         # Gradient descent optimisation algorithm
         optimizer=Adam( 
             # Learning rate, 
+            # used to scale weight changes
             # higher will increase convergence speed 
             # but make it more susceptible to local optima
             0.01 
@@ -144,7 +145,10 @@ def train(ds_train, model, epochs, ds_test=None):
     )
     # Train the model
     model.fit(
-        # Run the training examples through the model and update the weights
+        # Run the training examples through the model which yields a prediction
+        # The loss function finds the error of this prediction compared to the true result
+        # Backpropagation is used to propagate the error down the layers
+        # and update the weights to reduce the loss
         ds_train, 
         # Go over dataset x times
         # More repeats didn't significantly affect the results
@@ -157,7 +161,9 @@ def train(ds_train, model, epochs, ds_test=None):
     # Evaluate the model if there is evaluation data
     if ds_test is not None:
         score = model.evaluate(
-            # Run the testing examples through the model to find the accuracy
+            # Run the testing examples through the model to find predictions
+            # The correct output is known 
+            # The accuracy is the number of correct predictions divided by the total
             ds_test, 
             # don't print anything,
             verbose=0, 
@@ -169,6 +175,7 @@ def train(ds_train, model, epochs, ds_test=None):
 
 
 # Main control flow
+# Most important hyperparameters can be optimised by calling main 
 def main(batchsize=128, epochs=2, layersize=250, filters=10):
     # Get data
     ds_train, ds_test = get_data()
@@ -191,6 +198,7 @@ def main(batchsize=128, epochs=2, layersize=250, filters=10):
         if accuracy > highest_acc: 
             best_model = model
             highest_acc = accuracy
+        # Calculate runtime
         runtime, time_prev = time() - time_prev, time()
         # Output for the user
         print(f"Model {name} was evaluated with an average accuracy of {round(accuracy, 3)}. Runtime was {runtime}s")
